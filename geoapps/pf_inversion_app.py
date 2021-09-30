@@ -807,6 +807,12 @@ class InversionApp(PlotSelection2D):
         self._topography_group.workspace = workspace
         self._reference_model_group.workspace = workspace
         self._starting_model_group.workspace = workspace
+        self._starting_inclination_group.workspace = workspace
+        self._starting_declination_group.workspace = workspace
+        self._reference_inclination_group.workspace = workspace
+        self._reference_declination_group.workspace = workspace
+        self._lower_bound_group.workspace = workspace
+        self._upper_bound_group.workspace = workspace
         self._mesh_octree.workspace = workspace
 
         export_path = os.path.abspath(os.path.dirname(self.h5file))
