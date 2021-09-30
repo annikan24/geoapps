@@ -395,6 +395,8 @@ class TopographyOptions(ObjectDataSelection):
     Define the topography used by the inversion
     """
 
+    identifier = "topography"
+
     def __init__(
         self, option_list=["None", "Object", "Relative to Sensor", "Constant"], **kwargs
     ):

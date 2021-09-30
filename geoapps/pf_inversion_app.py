@@ -1167,28 +1167,6 @@ class InversionApp(PlotSelection2D):
 
     def write_trigger(self, _):
 
-        for key in self.__dict__:
-            try:
-                attr = getattr(self, key)
-                if isinstance(attr, Widget):
-                    setattr(self.params, key, attr.value)
-                else:
-                    sub_keys = []
-                    if isinstance(attr, ModelOptions):
-                        sub_keys = [attr.identifier, attr.identifier + "_object"]
-                        attr = self
-                    elif isinstance(attr, (MeshOctreeOptions, SensorOptions)):
-                        sub_keys = attr.params_keys
-                    for sub_key in sub_keys:
-                        value = getattr(attr, sub_key)
-                        if isinstance(value, Widget):
-                            value = value.value
-                        if isinstance(value, uuid.UUID):
-                            value = str(value)
-                        setattr(self.params, sub_key, value)
-
-            except AttributeError:
-                continue
         # Copy object to work geoh5
         new_workspace = Workspace(
             path.join(
@@ -1196,7 +1174,8 @@ class InversionApp(PlotSelection2D):
                 self._ga_group_name.value + ".geoh5",
             )
         )
-        for elem in [
+
+        parameters = [
             self,
             self._mesh_octree,
             self._topography_group,
@@ -1204,25 +1183,24 @@ class InversionApp(PlotSelection2D):
             self._reference_model_group,
             self._lower_bound_group,
             self._upper_bound_group,
-        ]:
-            obj, data = elem.get_selected_entities()
-
-            if obj is not None:
-                new_obj = obj.copy(parent=new_workspace, copy_children=False)
-                for d in data:
-                    d.copy(parent=new_obj)
-
+        ]
         if self.inversion_type.value == "magnetic vector":
-            for elem in [
+            parameters += [
                 self._starting_inclination_group,
                 self._starting_declination_group,
                 self._reference_inclination_group,
                 self._reference_declination_group,
-            ]:
-                obj, data = elem.get_selected_entities()
-                if obj is not None:
+            ]
+
+        for elem in parameters:
+            obj, data = elem.get_selected_entities()
+            if obj is not None:
+                new_obj = new_workspace.get_entity(obj.uid)[0]
+                if new_obj is None:
                     new_obj = obj.copy(parent=new_workspace, copy_children=False)
-                    for d in data:
+                for d in data:
+                    data_entity = new_workspace.get_entity(d.uid)[0]
+                    if data_entity is None:
                         d.copy(parent=new_obj)
 
         new_obj = new_workspace.get_entity(self.objects.value)[0]
@@ -1246,6 +1224,30 @@ class InversionApp(PlotSelection2D):
 
         self.params.geoh5 = new_workspace.h5file
         self.params.workspace = new_workspace
+
+        for key in self.__dict__:
+            try:
+                attr = getattr(self, key)
+                if isinstance(attr, Widget):
+                    setattr(self.params, key, attr.value)
+                else:
+                    sub_keys = []
+                    if isinstance(attr, (ModelOptions, TopographyOptions)):
+                        sub_keys = [attr.identifier, attr.identifier + "_object"]
+                        attr = self
+                    elif isinstance(attr, (MeshOctreeOptions, SensorOptions)):
+                        sub_keys = attr.params_keys
+                    for sub_key in sub_keys:
+                        value = getattr(attr, sub_key)
+                        if isinstance(value, Widget):
+                            value = value.value
+                        if isinstance(value, uuid.UUID):
+                            value = str(value)
+                        setattr(self.params, sub_key, value)
+
+            except AttributeError:
+                continue
+
         self.params.input_file.filepath = os.path.join(
             self.export_directory.selected_path, self._ga_group_name.value + ".ui.json"
         )
