@@ -141,7 +141,9 @@ class InversionApp(PlotSelection2D):
             value=1, description="Target misfit", disabled=False
         )
         self._lower_bound_group = ModelOptions("lower_bound", **self.defaults)
+        self._lower_bound_group.constant.description = "SI"
         self._upper_bound_group = ModelOptions("upper_bound", **self.defaults)
+        self._upper_bound_group.constant.description = "SI"
         self._ignore_values = widgets.Text(
             description="Value (i.e. '<0' for no negatives)",
         )
@@ -1089,6 +1091,7 @@ class InversionApp(PlotSelection2D):
         if self.inversion_type.value == "magnetic scalar":
             self._lower_bound_group.options.value = "Constant"
             self._lower_bound_group.constant.value = 0.0
+            self._lower_bound_group.constant.description = "SI"
         else:
             self._lower_bound_group.options.value = "None"
 
