@@ -152,7 +152,7 @@ inv_path = dsep.join([root_path, "geoh5_JSON"])
 
 # closes the file after reading
 input_template = dsep.join([root_path, "Inversion_.json"])
-zarr_dir = dsep.join([root_path, "Topo\\topo_3579_nts"])
+zarr_dir = dsep.join([root_path, "Topo\\topo_zarr_3579_nts"])
 zarr_files = os.listdir(zarr_dir)
 workspace = Workspace(data_file)
 
@@ -176,12 +176,14 @@ known_grids = {grid.uid: grid.name for grid in workspace.objects if isinstance(g
 
 # for easy copy and paste
 # get arc file info
-arc_path = r".\Arc_July2021"
+arc_path = r"C:\Users\inversion\Documents\2021_YK_CaMP\Arc_July2021"
 
 # polygons for localities, get heights, widths, id's
 loc_file = gpd.read_file(arc_path + '\Yukon_UM_localities.shp')
 
 # choose which localities you want to look at inversions sites in:
+# possible localitites: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+
 localities = [9, 13]
 loc_file = loc_file[loc_file['Locality'].isin(localities)]
 loc_num = loc_file.shape[0]
@@ -192,33 +194,60 @@ loc_ind = [list(loc_file.geometry.exterior[row_id].coords) for row_id in range(l
 # "eastings" and "northings" from below
 loc_east, loc_north = loc_file.geometry.centroid.x, loc_file.geometry.centroid.y
 
-# polygons for inversion sites
+# box for inversion sites
 # get heights, widths, id's, azimuths, eastings, northings, removes angles too small
 
-poly_file = gpd.read_file(arc_path + '\Yukon_inversion_sites.shp')
+box_file = gpd.read_file(arc_path + '\Yukon_inversion_sites.shp')
 
 # choose which inversions sites you want to invert:
-polygons = ['9.1']#, '9.4', '9.5', '9.6', '13.1', '13.3']
-poly_file = poly_file[poly_file['Inv_ID'].isin(polygons)]
-poly_num = poly_file.shape[0]
-poly_ind = [list(poly_file.geometry.exterior.iloc[row_id].coords) for row_id in range(poly_num)]
-invs = range(poly_num)
-widths = list(np.zeros(poly_num))
-heights = list(np.zeros(poly_num))
-poly_vert_diff = list(np.zeros(poly_num))
-azimuths = list(np.zeros(poly_num)) 
+# poss_invs = {1: [1.1, 1.2],
+#           2: [2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7],
+#           3: [3.1, 3.2],
+#           4: [4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8],
+#           5: [5.1, 5.2, 5.3, 5.4],
+#           6: [6.1, 6.2, 6.3],
+#           7: [7.1, 7.2],
+#           8: [8.1, 8.2],
+#           9: [9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7],
+#           10: [10.1, 10.2, 10.3, 10.4, 10.5],
+#           11: [11.1, 11.2, 11.3, 11.4],
+#           12: [12.1, 12.2],
+#           13: [13.1, 13.2, 13.3, 13.4],
+#           14: [14.1, 14.2, 14.3, 14.4, 14.5, 14.6,14.7],
+#           15: [15.1, 15.2],
+#           16: [16.1, 16.2, 16.3, 16.4, 16.5],
+#           17: [17.1, 17.2, 17.3, 17.4, 17.5],
+#           18: [18.1],
+#           19: [19.1, 19.2, 19.3],
+#           20: [20.1, 20.2, 20.3],
+#           21: [21.1, 21.2, 21.3, 21.4, 21.5, 21.6, 21.7, 21.8, 21.9],
+#           22: [22.1, 22.2],
+#           23: [23.1]
+#         }
 
-for pol in range(poly_num):
+
+boxes = ['9.1', '9.4', '9.5', '9.6', '13.1', '13.3']
+box_file = box_file[box_file['Inv_ID'].isin(boxes)]
+box_num = box_file.shape[0]
+box_ind = [list(box_file.geometry.exterior.iloc[row_id].coords) for row_id in range(box_num)]
+invs = range(box_num)
+widths = list(np.zeros(box_num))
+heights = list(np.zeros(box_num))
+box_vert_diff = list(np.zeros(box_num))
+azimuths = list(np.zeros(box_num))
+
+
+for pol in range(box_num):
     # 5th point == 1st point of rectangle, so can delete it
-    poly_ind[pol].pop()    
+    box_ind[pol].pop()
     
     # widths, heights, and angle calculation
-    widths[pol] = np.abs(poly_ind[pol][0][0] - poly_ind[pol][1][0])
-    heights[pol] = np.abs(poly_ind[pol][0][1] - poly_ind[pol][2][1])
-    poly_vert_diff[pol] = poly_ind[pol][0][1] - poly_ind[pol][1][1] 
-    azimuths[pol] = np.tan(poly_vert_diff[pol]/widths[pol])
+    widths[pol] = np.abs(box_ind[pol][0][0] - box_ind[pol][1][0])
+    heights[pol] = np.abs(box_ind[pol][0][1] - box_ind[pol][2][1])
+    box_vert_diff[pol] = box_ind[pol][0][1] - box_ind[pol][1][1]
+    azimuths[pol] = np.tan(box_vert_diff[pol]/widths[pol])
 
-    if len(poly_ind[pol]) != 4:
+    if len(box_ind[pol]) != 4:
         raise ValueError('The rectangle must have four sides')
 
 # remove any angles less than 5
@@ -226,7 +255,7 @@ for ang, pol in zip(azimuths, range(len(azimuths))):
     if ang == 0:
         azimuths[pol] = 0
 
-eastings, northings = poly_file.geometry.centroid.x, poly_file.geometry.centroid.y
+eastings, northings = box_file.geometry.centroid.x, box_file.geometry.centroid.y
 ''' 
     Find inducing field parameters for all sites 
     :param: D: declination (+ve east)
@@ -269,23 +298,23 @@ intensities = (eastings * a + northings * b + c).tolist()
 
 # plotting the locations of inversions for sanity check
 
-plt.figure()
-axs = plt.subplot(3, 1, 1)
-im = axs.scatter(eastings, northings, 10, c=inclins)
-axs.set_aspect('equal')
-plt.colorbar(im)
-
-axs = plt.subplot(3, 1, 2)
-im = axs.scatter(eastings, northings, 10, c=declins)
-axs.set_aspect('equal')
-plt.colorbar(im)
-
-axs = plt.subplot(3, 1, 3)
-im = axs.scatter(eastings, northings, 10, c=intensities)
-axs.set_aspect('equal')
-plt.colorbar(im)
-
-plt.show()
+# plt.figure()
+# axs = plt.subplot(3, 1, 1)
+# im = axs.scatter(eastings, northings, 10, c=inclins)
+# axs.set_aspect('equal')
+# plt.colorbar(im)
+#
+# axs = plt.subplot(3, 1, 2)
+# im = axs.scatter(eastings, northings, 10, c=declins)
+# axs.set_aspect('equal')
+# plt.colorbar(im)
+#
+# axs = plt.subplot(3, 1, 3)
+# im = axs.scatter(eastings, northings, 10, c=intensities)
+# axs.set_aspect('equal')
+# plt.colorbar(im)
+#
+# plt.show()
 
 # loop through inversion sites to create JSON files for each, which will be used to run inversions later
 
@@ -293,8 +322,8 @@ norms_names = [
     'L0_L2', 'L0_L1', 'L0_L0'
 ] #'L1_L1', 'L0_L0'
 
-for easting, northing, inv, width, height, azimuth, inclin, declin, intensity in zip(
-    eastings, northings, invs, widths, heights, azimuths, inclins, declins, intensities
+for box, easting, northing, inv, width, height, azimuth, inclin, declin, intensity in zip(
+    boxes, eastings, northings, invs, widths, heights, azimuths, inclins, declins, intensities
 ): 
     
     geoh5_file_name = dsep.join([inv_path, f"Inversion_{inv:.1f}.geoh5" ])
@@ -353,7 +382,7 @@ for easting, northing, inv, width, height, azimuth, inclin, declin, intensity in
         
         params = MagneticVectorParams()
 
-        json_file_name = f"Inversion_{inv:.1f}_{norms_names[ii]}"
+        json_file_name = f"Inversion_{inv:.1f}_{box}_{norms_names[ii]}"
         
         # Restart the inversion with previous beta at end of Cartesian
 #         if norms_names[ii] != "L2_L2":
@@ -376,7 +405,9 @@ for easting, northing, inv, width, height, azimuth, inclin, declin, intensity in
         # if f"Inversion_{inv:.1f}_{norms_names[ii]}" in list(tile_ws.list_groups_name.values()):
         #     continue
         
-        params.out_group = f"Inversion_{inv:.1f}_{norms_names[ii]}"
+        params.out_group = f"Inversion_{inv:.1f}_{box}_{norms_names[ii]}"
+        params.detrend_order = 0
+        # params.detrend_type = 'corners'
         params.workspace = tile_ws
         params.geoh5 = tile_ws
         params.inducing_field_strength = intensity
@@ -387,7 +418,7 @@ for easting, northing, inv, width, height, azimuth, inclin, declin, intensity in
         params.w_cell_size = cell_size
         params.depth_core = depth_core
         params.horizontal_padding = depth_core
-        params.vertical_padding = 0
+        params.vertical_padding = 10000
         params.octree_levels_topo = [0, 0, 4, 4]
         params.octree_levels_obs = [6, 6, 6]
         params.s_norm, params.x_norm, params.y_norm, params.z_norm = norms
@@ -395,7 +426,7 @@ for easting, northing, inv, width, height, azimuth, inclin, declin, intensity in
         params.starting_model = 1e-4
         params.window_center_x, params.window_center_y = easting, northing
         params.window_width, params.window_height = float(width), float(height)
-        params.window_azimuth = azimuth
+        params.window_azimuth = int(azimuth)
         params.initial_beta_ratio = 100.
         params.data_object = survey.uid
         params.tmi_channel_bool = True

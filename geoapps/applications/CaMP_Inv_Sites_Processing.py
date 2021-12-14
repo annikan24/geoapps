@@ -1,16 +1,11 @@
-#!/usr/bin/env python
-# coding: utf-8
 
-# In[5]:
+#  Copyright (c) 2021 Mira Geoscience Ltd.
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
 
-
-get_ipython().system('pip install pyvista')
-
-
-# In[1]:
-
-
-get_ipython().run_line_magic('matplotlib', 'inline')
 import numpy as np
 import shutil
 from geoh5py.workspace import Workspace
@@ -29,8 +24,12 @@ import os
 from tqdm import tqdm
 import qrcode
 import pyvista
+get_ipython().system('pip install pyvista')
+get_ipython().run_line_magic('matplotlib', 'inline')
+
 pyvista.set_plot_theme('document')
 pyvista.rcParams['use_panel'] = False
+
 
 
 # # Batch inversion processing
@@ -38,9 +37,6 @@ pyvista.rcParams['use_panel'] = False
 # Notebook for the extraction of isovolumes and sections from a list on inversions.
 # 
 # Fournier & Naylor 2020
-# 
-
-# In[2]:
 
 
 root_path = r"."
@@ -48,9 +44,6 @@ dsep = os.path.sep
 data_file = dsep.join([root_path, "Mag_Albers.geoh5"]) 
 inv_path = dsep.join([root_path, "Inversion"])         
 workspace = Workspace(data_file)
-
-
-# In[3]:
 
 
 mag_inv_sites = workspace.get_entity("CAMP_Inversion_site_specs_Dec2020")[0]
@@ -67,16 +60,12 @@ anomaly_inv = mag_inv_sites.get_data("ID")[0].values.tolist()
 lower_bound = 0.02
 upper_bound = 1.0
 
-
-# In[4]:
-
-
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
 def curve_to_polygons(curve, ax, zorder=10, linewidth=1):
     """
-    The a curve object and returns matplotlib.patches.Polygon objects. 
+    The a curve object and returns matplotlib.patches.Polygon objects.
     One object for each parts of the curve.
     """
     
@@ -97,9 +86,6 @@ axs.set_xlim(geology.vertices[:,0].min(), geology.vertices[:,0].max())
 axs.set_ylim(geology.vertices[:,1].min(), geology.vertices[:,1].max())
 # axs.set_xlim(ax1.get_xlim())
 # axs.set_ylim(ax1.get_ylim())
-
-
-# In[5]:
 
 
 def get_iso_neighbours(indices, mesh, model, lower_bound, upper):
@@ -124,10 +110,6 @@ def get_iso_neighbours(indices, mesh, model, lower_bound, upper):
         keeper += indices
     return keeper
         
-
-
-# In[6]:
-
 
 def compute_bounds(bounds, factor):
     # Define a region of interest

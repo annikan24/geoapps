@@ -4,6 +4,11 @@
 #
 #  geoapps is distributed under the terms and conditions of the MIT License
 #  (see LICENSE file at the root of this source code package).
+#
+#  This file is part of geoapps.
+#
+#  geoapps is distributed under the terms and conditions of the MIT License
+#  (see LICENSE file at the root of this source code package).
 
 # Batch inversion processing
 #
@@ -18,13 +23,13 @@ from geoh5py.workspace import Workspace
 from discretize import TreeMesh
 from geoh5py.objects import Octree, BlockModel
 from geoh5py.data import FloatData
-from geoapps.inversion import get_inversion_output
+# from geoapps.inversion import get_inversion_output
 from GeoToolkit.Mag import Simulator
 from scipy.spatial import cKDTree, Delaunay
 from scipy.interpolate import LinearNDInterpolator, griddata
 import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
-from geoapps.utils import octree_2_treemesh, find_value, rotate_xy
+from geoapps.utils import octree_2_treemesh, rotate_xy # , find_value
 from shutil import copyfile
 import os
 from tqdm import tqdm
@@ -33,31 +38,7 @@ import pyvista
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
-get_ipython().system('pip install pyvista')
-get_ipython().run_line_magic('matplotlib', 'inline')
-pyvista.set_plot_theme('document')
-pyvista.rcParams['use_panel'] = False
 
-
-root_path = r"."
-dsep = os.path.sep
-data_file = dsep.join([root_path, "Mag_Albers.geoh5"])
-inv_path = dsep.join([root_path, "Inversion"])
-workspace = Workspace(data_file)
-
-mag_inv_sites = workspace.get_entity("CAMP_Inversion_site_specs_Dec2020")[0]
-
-geology = workspace.get_entity("CaMP_geounit_classes_no_subunits")[0]
-
-# um_sites = mag_inv_sites.get_data('UmSite')[0].values.tolist()
-eastings = mag_inv_sites.vertices[:, 0].tolist()
-northings = mag_inv_sites.vertices[:, 1].tolist()
-
-anomaly_inv = mag_inv_sites.get_data("ID")[0].values.tolist()
-
-
-lower_bound = 0.02
-upper_bound = 1.0
 
 
 def get_iso_neighbours(indices, mesh, model, lower_bound, upper):
