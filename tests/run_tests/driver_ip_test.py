@@ -12,6 +12,9 @@ from SimPEG import utils
 from geoapps.utils import get_inversion_output
 from geoapps.utils.testing import setup_inversion_workspace
 
+# import pytest
+# pytest.skip("eliminating conflicting test.", allow_module_level=True)
+
 # To test the full run and validate the inversion.
 # Move this file out of the test directory and run.
 
@@ -35,7 +38,7 @@ def test_ip_run(
 
     np.random.seed(0)
     # Run the forward
-    workspace = setup_inversion_workspace(
+    geoh5 = setup_inversion_workspace(
         tmp_path,
         background=1e-6,
         anomaly=1e-1,
@@ -46,34 +49,35 @@ def test_ip_run(
         flatten=False,
     )
 
-    tx_obj = workspace.get_entity("survey (currents)")[0]
+    tx_obj = geoh5.get_entity("survey (currents)")[0]
     tx_obj.cells = tx_obj.cells.astype("uint32")
 
-    model = workspace.get_entity("model")[0]
+    model = geoh5.get_entity("model")[0]
     params = InducedPolarizationParams(
         forward_only=True,
-        workspace=workspace,
-        mesh=model.parent,
-        topography_object=workspace.get_entity("topography")[0],
+        geoh5=geoh5,
+        mesh=model.parent.uid,
+        topography_object=geoh5.get_entity("topography")[0].uid,
         resolution=0.0,
         z_from_topo=True,
-        data_object=workspace.get_entity("survey")[0],
-        starting_model_object=model.parent,
-        starting_model=model,
+        data_object=geoh5.get_entity("survey")[0].uid,
+        starting_model_object=model.parent.uid,
+        starting_model=model.uid,
         conductivity_model=1e-2,
     )
+    params.workpath = tmp_path
     fwr_driver = InducedPolarizationDriver(params)
     fwr_driver.run()
-    workspace = Workspace(workspace.h5file)
-    potential = workspace.get_entity("Predicted_chargeability")[0]
+    geoh5 = Workspace(geoh5.h5file)
+    potential = geoh5.get_entity("Predicted_chargeability")[0]
     # Run the inverse
     np.random.seed(0)
     params = InducedPolarizationParams(
-        workspace=workspace,
-        mesh=workspace.get_entity("mesh")[0],
-        topography_object=workspace.get_entity("topography")[0],
+        geoh5=geoh5,
+        mesh=geoh5.get_entity("mesh")[0].uid,
+        topography_object=geoh5.get_entity("topography")[0].uid,
         resolution=0.0,
-        data_object=potential.parent,
+        data_object=potential.parent.uid,
         conductivity_model=1e-2,
         starting_model=1e-6,
         s_norm=0.0,
@@ -83,7 +87,7 @@ def test_ip_run(
         gradient_type="components",
         chargeability_channel_bool=True,
         z_from_topo=True,
-        chargeability_channel=potential,
+        chargeability_channel=potential.uid,
         chargeability_uncertainty=2e-4,
         max_iterations=max_iterations,
         initial_beta=None,
@@ -92,10 +96,11 @@ def test_ip_run(
         upper_bound=0.1,
         tile_spatial=n_lines,
     )
+    params.workpath = tmp_path
     driver = InducedPolarizationDriver(params)
     driver.run()
     output = get_inversion_output(
-        driver.params.workspace.h5file, driver.params.ga_group.uid
+        driver.params.geoh5.h5file, driver.params.ga_group.uid
     )
     if pytest:
         np.testing.assert_almost_equal(

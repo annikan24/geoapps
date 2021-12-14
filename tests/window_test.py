@@ -5,6 +5,8 @@
 #  geoapps is distributed under the terms and conditions of the MIT License
 #  (see LICENSE file at the root of this source code package).
 
+from copy import deepcopy
+
 import numpy as np
 from geoh5py.objects import Points
 from geoh5py.workspace import Workspace
@@ -13,17 +15,17 @@ from geoapps.drivers.components import InversionWindow
 from geoapps.io.Gravity import GravityParams, default_ui_json
 from geoapps.utils.testing import Geoh5Tester
 
-workspace = Workspace("./FlinFlon.geoh5")
+geoh5 = Workspace("./FlinFlon.geoh5")
 
 
 def test_initialize(tmp_path):
 
     # Test initialize from params
     tester = Geoh5Tester(
-        workspace,
+        geoh5,
         tmp_path,
         "test.geoh5",
-        ui=default_ui_json,
+        ui=deepcopy(default_ui_json),
         params_class=GravityParams,
     )
 

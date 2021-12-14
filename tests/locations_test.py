@@ -5,6 +5,8 @@
 #  geoapps is distributed under the terms and conditions of the MIT License
 #  (see LICENSE file at the root of this source code package).
 
+from copy import deepcopy
+
 import numpy as np
 import pytest
 from geoh5py.objects import Grid2D, Points
@@ -15,12 +17,12 @@ from geoapps.drivers.components.locations import InversionLocations
 from geoapps.io.MagneticVector import MagneticVectorParams, default_ui_json
 from geoapps.utils.testing import Geoh5Tester
 
-workspace = Workspace("./FlinFlon.geoh5")
+geoh5 = Workspace("./FlinFlon.geoh5")
 
 
 def setup_params(tmp):
     geotest = Geoh5Tester(
-        workspace, tmp, "test.geoh5", default_ui_json, MagneticVectorParams
+        geoh5, tmp, "test.geoh5", deepcopy(default_ui_json), MagneticVectorParams
     )
     geotest.set_param("mesh", "{e334f687-df71-4538-ad28-264e420210b8}")
     geotest.set_param("topography_object", "{ab3c2083-6ea8-4d31-9230-7aad3ec09525}")

@@ -22,15 +22,13 @@ class InputValidator:
     ----------
     requirements : List of required parameters.
     validations : Validations dictionary with matching set of input parameter keys.
-    workspace (optional) : Workspace instance needed to validate uuid types.
-    input (optional) : Input file contents parsed to dict.
+    geoh5 (optional) : Workspace instance needed to validate uuid types.
+
 
     Methods
     -------
-    validate_uuid(uuid)
-        validates string as a valid uuid.
-    validate_input(input)
-        Validates input params and contents/type/shape/keys of values.
+    validate_chunk(chunk)
+        Validates chunk of params and contents/type/shape/keys/reqs of values.
     validate(param value)
         Validates parameter values, types, shapes, and keys.
 
@@ -40,13 +38,13 @@ class InputValidator:
         self,
         requirements: list[str],
         validations: dict[str, Any],
-        workspace: Workspace = None,
-        input=None,
+        geoh5: Workspace = None,
+        ignore_requirements: bool = False,
     ):
         self.requirements = requirements
         self.validations = validations
-        self.workspace = workspace
-        self.input = input
+        self.geoh5 = geoh5
+        self.ignore_requirements = ignore_requirements
 
     @property
     def requirements(self):
@@ -64,17 +62,11 @@ class InputValidator:
     def validations(self, val):
         self._validations = val
 
-    @property
-    def input(self):
-        return self._input
-
-    @input.setter
-    def input(self, val):
-        self._input = val
-
-    def validate_input(self, input) -> None:
+    def validate_chunk(
+        self, chunk: dict[str, Any], associations: dict[str, Any]
+    ) -> None:
         """
-        Validates input params and contents/type/shape/requirements of values.
+        Validates chunk of params and contents/type/shape/requirements of values.
 
         Calls validate method on individual key/value pairs in input, and
         handles validations requiring knowledge of other parameters.
@@ -89,15 +81,15 @@ class InputValidator:
         it's value/type/shape/requirement validations.
         """
 
-        self.input = input
-        self._validate_requirements(input.data)
+        if not self.ignore_requirements:
+            self._validate_requirements(chunk)
 
-        for k, v in input.data.items():
+        for k, v in chunk.items():
             if k not in self.validations.keys():
                 raise KeyError(f"{k} is not a valid parameter name.")
             else:
                 self.validate(
-                    k, v, self.validations[k], self.workspace, input.associations
+                    k, v, self.validations[k], self.geoh5, chunk, associations
                 )
 
     def validate(
@@ -105,7 +97,8 @@ class InputValidator:
         param: str,
         value: Any,
         pvalidations: dict[str, list[Any]],
-        workspace: Workspace = None,
+        geoh5: Workspace = None,
+        chunk: dict[str, Any] = None,
         associations: dict[str | UUID, str | UUID] = None,
     ) -> None:
         """
@@ -139,25 +132,34 @@ class InputValidator:
                     exclusions = ["values", "types", "shapes", "reqs", "uuid"]
                     vkeys = [k for k in pvalidations.keys() if k not in exclusions]
                     msg = self._iterable_validation_msg(param, "keys", k, vkeys)
-                    raise KeyError(msg)
-                self.validate(k, v, pvalidations[k], workspace, associations)
+                    if vkeys:
+                        raise KeyError(msg)
+                self.validate(k, v, pvalidations[k], geoh5, chunk, associations)
 
         if value is None:
-            if param in self.requirements:
-                raise ValueError(f"{param} is a required parameter. Cannot be None.")
+            if chunk is None:
+                if not self.ignore_requirements:
+                    if param in self.requirements:
+                        raise ValueError(
+                            f"{param} is a required parameter. Cannot be None."
+                        )
             else:
                 return
 
-        ws = self.workspace if workspace is None else workspace
+        ws = self.geoh5 if geoh5 is None else geoh5
         if "values" in pvalidations.keys():
             self._validate_parameter_val(param, value, pvalidations["values"])
         if "types" in pvalidations.keys():
             self._validate_parameter_type(param, value, pvalidations["types"])
         if "shapes" in pvalidations.keys():
             self._validate_parameter_shape(param, value, pvalidations["shapes"])
-        if ("reqs" in pvalidations.keys()) & (self.input is not None):
+        if (
+            ("reqs" in pvalidations.keys())
+            & (chunk is not None)
+            & (not self.ignore_requirements)
+        ):
             for req in pvalidations["reqs"]:
-                self._validate_parameter_req(param, value, req)
+                self._validate_parameter_req(param, value, req, chunk)
         if "uuid" in pvalidations.keys():
             if isinstance(value, str):
                 try:
@@ -165,7 +167,16 @@ class InputValidator:
                     parent = associations[child_uuid]
                 except (KeyError, TypeError):
                     parent = None
-                self._validate_parameter_uuid(param, value, ws, parent)
+            elif isinstance(value, UUID):
+                try:
+                    parent = associations[value]
+                except (KeyError, TypeError):
+                    parent = None
+            else:
+                parent = None
+
+            self._validate_parameter_uuid(param, value, ws, parent)
+
         if "property_groups" in pvalidations.keys():
             try:
                 parent = associations[value]
@@ -202,7 +213,9 @@ class InputValidator:
             msg = self._iterable_validation_msg(param, "shape", pshape, vshape)
             raise ValueError(msg)
 
-    def _validate_parameter_req(self, param: str, value: Any, req: tuple) -> None:
+    def _validate_parameter_req(
+        self, param: str, value: Any, req: tuple, chunk: dict[str, Any]
+    ) -> None:
         """Raise a KeyError if parameter requirement is not satisfied."""
 
         hasval = len(req) > 1  # req[0] contains value for which param req[1] must exist
@@ -213,8 +226,8 @@ class InputValidator:
             if value != req[0]:
                 return
 
-        if preq in self.input.data.keys():
-            noreq = True if self.input.data[preq] == None else False
+        if preq in chunk.keys():
+            noreq = True if chunk[preq] == None else False
         else:
             noreq = True
 
@@ -225,7 +238,7 @@ class InputValidator:
     def _req_validation_msg(self, param, preq, val=None):
         """Generate unsatisfied parameter requirement message."""
 
-        msg = f"Unsatisfied '{param}' requirement. Input file must contain "
+        msg = f"Unsatisfied '{param}' requirement. Data must contain "
         if val is not None:
             msg += f"'{preq}' if '{param}' is '{str(val)}'."
         else:
@@ -233,7 +246,7 @@ class InputValidator:
         return msg
 
     def _validate_parameter_uuid(
-        self, param: str, value: str, workspace: Workspace = None, parent: UUID = None
+        self, param: str, value: str, geoh5: Workspace = None, parent: UUID = None
     ) -> None:
         """Check whether a string is a valid uuid and addresses an object in the workspace."""
         msg = self._general_validation_msg(param, "uuid", value)
@@ -246,25 +259,25 @@ class InputValidator:
                 msg += " Must be a valid uuid string."
                 raise ValueError(msg)
 
-        if workspace is not None:
-            obj = workspace.get_entity(obj_uuid)
+        if geoh5 is not None:
+            obj = geoh5.get_entity(obj_uuid)
             if obj[0] is None:
-                msg += f" Address does not exist in workspace: {workspace}."
+                msg += f" Address does not exist in workspace: {geoh5}."
                 raise IndexError(msg)
 
         if parent is not None:
-            parent_obj = workspace.get_entity(parent)[0]
+            parent_obj = geoh5.get_entity(parent)[0]
             if obj_uuid not in [c.uid for c in parent_obj.children]:
                 msg += f" Object must be a child of {parent}."
                 raise IndexError(msg)
 
     def _validate_parameter_property_groups(
-        self, param: str, value: str, workspace: Workspace = None, parent: UUID = None
+        self, param: str, value: str, geoh5: Workspace = None, parent: UUID = None
     ) -> None:
         msg = self._general_validation_msg(param, "property_groups", value)
 
         if parent is not None:
-            parent_obj = workspace.get_entity(parent)[0]
+            parent_obj = geoh5.get_entity(parent)[0]
             if value not in [pg.uid for pg in parent_obj.property_groups]:
                 msg += f" Property Group must exist for {parent}."
 
@@ -288,27 +301,29 @@ class InputValidator:
         return msg
 
     def _validate_requirements(
-        self, input: dict[str, Any], requirements: list[str] = None
+        self, chunk: dict[str, Any], requirements: list[str] = None
     ) -> None:
         """
-        Ensures that all required input file keys are present.
+        Ensures that all required keys are present.
 
         Parameters
         ----------
-        input : Input file contents parsed to dict.
+        chunk : Chunk of parameter data.
 
         Raises
         ------
         ValueError
             If a required parameter (stored in constants.required_parameters)
-            is missing from the input file contents.
+            is missing from the chunk contents.
 
         """
         reqs = self.requirements if requirements is None else requirements
 
         missing = []
         for param in reqs:
-            if param not in input.keys():
+            if param not in chunk.keys():
+                missing.append(param)
+            elif chunk[param] is None:
                 missing.append(param)
         if missing:
             raise ValueError(f"Missing required parameter(s): {*missing,}.")
@@ -344,17 +359,16 @@ class InputFreeformValidator(InputValidator):
         self,
         requirements: list[str],
         validations: dict[str, Any],
-        workspace: Workspace = None,
-        input=None,
+        geoh5: Workspace = None,
         free_params_keys: list = [],
     ):
-        super().__init__(requirements, validations, workspace=workspace, input=input)
+        super().__init__(requirements, validations, geoh5=geoh5)
         self._free_params_keys = free_params_keys
 
-    def validate_input(self, input) -> None:
-        self._validate_requirements(input.data)
+    def validate_chunk(self, chunk, associations) -> None:
+        self._validate_requirements(chunk)
         free_params_dict = {}
-        for k, v in input.data.items():
+        for k, v in chunk.items():
             if " " in k:
 
                 if "template" in k.lower():
@@ -375,8 +389,9 @@ class InputFreeformValidator(InputValidator):
                 raise KeyError(f"{k} is not a valid parameter name.")
             else:
                 validator = self.validations[k]
-            self.validate(k, v, validator, self.workspace, input.associations)
+            self.validate(k, v, validator, self.geoh5, chunk, associations)
 
+        # TODO This check should be handled by a group validator
         if any(free_params_dict):
             for key, group in free_params_dict.items():
                 if not len(list(group.values())) == len(self.free_params_keys):
@@ -384,8 +399,6 @@ class InputFreeformValidator(InputValidator):
                         f"Freeformat parameter {key} must contain one of each: "
                         + f"{self.free_params_keys}"
                     )
-
-            input._free_params_dict = free_params_dict
 
     @property
     def free_params_keys(self):

@@ -5,12 +5,16 @@
 #  geoapps is distributed under the terms and conditions of the MIT License
 #  (see LICENSE file at the root of this source code package).
 
+
 import numpy as np
 from geoh5py.workspace import Workspace
 from SimPEG import utils
 
 from geoapps.utils import get_inversion_output
 from geoapps.utils.testing import setup_inversion_workspace
+
+# import pytest
+# pytest.skip("eliminating conflicting test.", allow_module_level=True)
 
 # To test the full run and validate the inversion.
 # Move this file out of the test directory and run.
@@ -34,7 +38,7 @@ def test_gravity_run(
 
     np.random.seed(0)
     # Run the forward
-    workspace = setup_inversion_workspace(
+    geoh5 = setup_inversion_workspace(
         tmp_path,
         background=0.0,
         anomaly=0.75,
@@ -43,37 +47,38 @@ def test_gravity_run(
         refinement=refinement,
         flatten=False,
     )
-    model = workspace.get_entity("model")[0]
+    model = geoh5.get_entity("model")[0]
     params = GravityParams(
         forward_only=True,
-        workspace=workspace,
-        mesh=model.parent,
-        topography_object=workspace.get_entity("topography")[0],
+        geoh5=geoh5,
+        mesh=model.parent.uid,
+        topography_object=geoh5.get_entity("topography")[0].uid,
         resolution=0.0,
         z_from_topo=False,
-        data_object=workspace.get_entity("survey")[0],
-        starting_model_object=model.parent,
-        starting_model=model,
+        data_object=geoh5.get_entity("survey")[0].uid,
+        starting_model_object=model.parent.uid,
+        starting_model=model.uid,
     )
+    params.workpath = tmp_path
     fwr_driver = GravityDriver(params)
     fwr_driver.run()
-    workspace = Workspace(workspace.h5file)
+    geoh5 = Workspace(geoh5.h5file)
 
-    gz = workspace.get_entity("Predicted_gz")[0]
+    gz = geoh5.get_entity("Predicted_gz")[0]
     orig_gz = gz.values.copy()
 
     # Turn some values to nan
     gz.values[0] = np.nan
-    workspace.finalize()
+    geoh5.finalize()
 
     # Run the inverse
     np.random.seed(0)
     params = GravityParams(
-        workspace=workspace,
-        mesh=workspace.get_entity("mesh")[0],
-        topography_object=workspace.get_entity("topography")[0],
+        geoh5=geoh5,
+        mesh=geoh5.get_entity("mesh")[0].uid,
+        topography_object=geoh5.get_entity("topography")[0].uid,
         resolution=0.0,
-        data_object=gz.parent,
+        data_object=gz.parent.uid,
         starting_model=1e-4,
         s_norm=0.0,
         x_norm=1.0,
@@ -82,21 +87,22 @@ def test_gravity_run(
         gradient_type="components",
         gz_channel_bool=True,
         z_from_topo=False,
-        gz_channel=gz,
+        gz_channel=gz.uid,
         gz_uncertainty=2e-3,
         upper_bound=0.75,
         max_iterations=max_iterations,
         initial_beta_ratio=1e-2,
         prctile=100,
     )
+    params.workpath = tmp_path
     driver = GravityDriver(params)
     driver.run()
-    run_ws = Workspace(driver.params.workspace.h5file)
+    run_ws = Workspace(driver.params.geoh5.h5file)
     output = get_inversion_output(
-        driver.params.workspace.h5file, driver.params.ga_group.uid
+        driver.params.geoh5.h5file, driver.params.ga_group.uid
     )
 
-    residual = run_ws.get_entity("Residuals_gz")[0]
+    residual = run_ws.get_entity("Iteration_1_grav_gz_Residual")[0]
     assert np.isnan(residual.values).sum() == 1, "Number of nan residuals differ."
 
     predicted = run_ws.get_entity("Iteration_0_grav_gz")[0]
@@ -111,7 +117,7 @@ def test_gravity_run(
         np.testing.assert_almost_equal(output["phi_m"][1], target_gravity_run["phi_m"])
         np.testing.assert_almost_equal(output["phi_d"][1], target_gravity_run["phi_d"])
 
-        nan_ind = np.isnan(run_ws.get_entity("Iteration_0__model")[0].values)
+        nan_ind = np.isnan(run_ws.get_entity("Iteration_0_model")[0].values)
         inactive_ind = run_ws.get_entity("active_cells")[0].values == 0
         assert np.all(nan_ind == inactive_ind)
     else:

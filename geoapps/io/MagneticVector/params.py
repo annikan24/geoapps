@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from uuid import UUID
 
 from geoapps.io.Inversion import InversionParams
@@ -15,7 +16,9 @@ from ..validators import InputValidator
 from .constants import (
     default_ui_json,
     forward_defaults,
+    forward_ui_json,
     inversion_defaults,
+    inversion_ui_json,
     required_parameters,
     validations,
 )
@@ -25,8 +28,10 @@ class MagneticVectorParams(InversionParams):
 
     _required_parameters = required_parameters
     _validations = validations
-    forward_defaults = forward_defaults
-    inversion_defaults = inversion_defaults
+    _forward_defaults = forward_defaults
+    _inversion_defaults = inversion_defaults
+    forward_ui_json = forward_ui_json
+    inversion_ui_json = inversion_ui_json
     _directive_list = [
         "VectorInversion",
         "Update_IRLS",
@@ -36,10 +41,12 @@ class MagneticVectorParams(InversionParams):
         "SaveIterationsGeoH5",
     ]
 
-    def __init__(self, forward=False, **kwargs):
-        self.validator: InputValidator = InputValidator(
-            required_parameters, validations
-        )
+    def __init__(
+        self, input_file=None, default=True, validate=True, validator_opts={}, **kwargs
+    ):
+
+        self.validate = False
+        self.default_ui_json = deepcopy(default_ui_json)
         self.inversion_type: str = "magnetic vector"
         self.inducing_field_strength: float = None
         self.inducing_field_inclination: float = None
@@ -82,11 +89,8 @@ class MagneticVectorParams(InversionParams):
         self.reference_declination_object: UUID = None
         self.reference_inclination = None
         self.reference_declination = None
-        self.defaults = inversion_defaults
-        self.default_ui_json = {k: default_ui_json[k] for k in self.defaults}
-        self.param_names = list(self.default_ui_json.keys())
 
-        super().__init__(**kwargs)
+        super().__init__(input_file, default, validate, validator_opts, **kwargs)
 
     def components(self) -> list[str]:
         comps = super().components()
@@ -114,7 +118,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "inversion_type"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._inversion_type = val
 
@@ -129,7 +133,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "inducing_field_strength"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         if val <= 0:
             raise ValueError("inducing_field_strength must be greater than 0.")
@@ -146,7 +150,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "inducing_field_inclination"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._inducing_field_inclination = UUID(val) if isinstance(val, str) else val
 
@@ -161,7 +165,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "inducing_field_declination"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._inducing_field_declination = UUID(val) if isinstance(val, str) else val
 
@@ -176,7 +180,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "tmi_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._tmi_channel_bool = val
 
@@ -191,7 +195,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "tmi_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._tmi_channel = UUID(val) if isinstance(val, str) else val
 
@@ -206,7 +210,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "tmi_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._tmi_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -221,7 +225,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxx_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxx_channel_bool = val
 
@@ -236,7 +240,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxx_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxx_channel = UUID(val) if isinstance(val, str) else val
 
@@ -251,7 +255,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxx_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxx_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -266,7 +270,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxy_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxy_channel_bool = val
 
@@ -281,7 +285,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxy_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxy_channel = UUID(val) if isinstance(val, str) else val
 
@@ -296,7 +300,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxy_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxy_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -311,7 +315,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxz_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxz_channel_bool = val
 
@@ -326,7 +330,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxz_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxz_channel = UUID(val) if isinstance(val, str) else val
 
@@ -341,7 +345,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bxz_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bxz_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -356,7 +360,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "byy_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._byy_channel_bool = val
 
@@ -371,7 +375,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "byy_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._byy_channel = UUID(val) if isinstance(val, str) else val
 
@@ -386,7 +390,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "byy_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._byy_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -401,7 +405,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "byz_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._byz_channel_bool = val
 
@@ -416,7 +420,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "byz_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._byz_channel = UUID(val) if isinstance(val, str) else val
 
@@ -431,7 +435,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "byz_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._byz_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -446,7 +450,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bzz_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bzz_channel_bool = val
 
@@ -461,7 +465,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bzz_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bzz_channel = UUID(val) if isinstance(val, str) else val
 
@@ -476,7 +480,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bzz_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bzz_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -491,7 +495,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bx_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bx_channel_bool = val
 
@@ -506,7 +510,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bx_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bx_channel = UUID(val) if isinstance(val, str) else val
 
@@ -521,7 +525,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bx_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bx_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -536,7 +540,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "by_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._by_channel_bool = val
 
@@ -551,7 +555,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "by_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._by_channel = UUID(val) if isinstance(val, str) else val
 
@@ -566,7 +570,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "by_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._by_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -581,7 +585,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bz_channel_bool"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bz_channel_bool = val
 
@@ -596,7 +600,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bz_channel"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bz_channel = UUID(val) if isinstance(val, str) else val
 
@@ -611,7 +615,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "bz_uncertainty"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._bz_uncertainty = UUID(val) if isinstance(val, str) else val
 
@@ -626,7 +630,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "starting_inclination_object"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._starting_inclination_object = UUID(val) if isinstance(val, str) else val
 
@@ -641,7 +645,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "starting_declination_object"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._starting_declination_object = UUID(val) if isinstance(val, str) else val
 
@@ -656,7 +660,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "starting_inclination"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._starting_inclination = UUID(val) if isinstance(val, str) else val
 
@@ -671,7 +675,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "starting_declination"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._starting_declination = UUID(val) if isinstance(val, str) else val
 
@@ -686,7 +690,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "reference_inclination_object"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._reference_inclination_object = UUID(val) if isinstance(val, str) else val
 
@@ -701,7 +705,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "reference_declination_object"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._reference_declination_object = UUID(val) if isinstance(val, str) else val
 
@@ -716,7 +720,7 @@ class MagneticVectorParams(InversionParams):
             return
         p = "reference_inclination"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._reference_inclination = UUID(val) if isinstance(val, str) else val
 
@@ -731,6 +735,6 @@ class MagneticVectorParams(InversionParams):
             return
         p = "reference_declination"
         self.validator.validate(
-            p, val, self.validations[p], self.workspace, self.associations
+            p, val, self.validations[p], self.geoh5, self.associations
         )
         self._reference_declination = UUID(val) if isinstance(val, str) else val

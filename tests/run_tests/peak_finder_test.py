@@ -9,16 +9,19 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 from geoh5py.objects import Curve
 from geoh5py.workspace import Workspace
 from ipywidgets import Widget
 
 from geoapps.processing.peak_finder import PeakFinder
 
+# pytest.skip("eliminating conflicting test.", allow_module_level=True)
+
 
 def test_peak_finder_app(tmp_path):
     project = "./FlinFlon.geoh5"
-    app = PeakFinder(h5file=project, plot_result=False)
+    app = PeakFinder(geoh5=project, plot_result=False)
 
     h5file_path = Path(tmp_path) / r"testPeakFinder.geoh5"
 
